@@ -28,6 +28,11 @@ app_license = "mit"
 # app_include_css = "/assets/quantbit_tradex/css/quantbit_tradex.css"
 # app_include_js = "/assets/quantbit_tradex/js/quantbit_tradex.js"
 
+
+app_include_js = [
+    "/assets/erpnext/erpnext/accounts/report/general_ledger/general_ledger.js"
+]
+
 # include js, css files in header of web template
 # web_include_css = "/assets/quantbit_tradex/css/quantbit_tradex.css"
 # web_include_js = "/assets/quantbit_tradex/js/quantbit_tradex.js"
