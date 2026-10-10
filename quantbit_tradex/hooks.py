@@ -274,17 +274,5 @@ fixtures = [
         "filters": [
             ["module", "=", "Quantbit Tradex"]
         ]
-    },
-    {
-        "dt": "Property Setter",
-        "filters": [
-            ["module", "=", "Quantbit Tradex"]
-        ]
-    },
-    {
-        "dt": "Client Script",
-        "filters": [
-            ["module", "=", "Quantbit Tradex"]
-        ]
     }
 ]
