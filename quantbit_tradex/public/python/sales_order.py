@@ -1,18 +1,19 @@
 import frappe
 from frappe.desk.query_report import run
 from frappe.utils import flt
-
+from frappe.utils import today
 
 @frappe.whitelist()
 def get_warehouse_stock_on_date(item_code, posting_date, company):
     if not item_code or not posting_date or not company:
         return []
 
+    current_date = today()
     filters = {
         "company": company,
         "item_code": [item_code],
-        "from_date": posting_date,
-        "to_date": posting_date,
+        "from_date": current_date,
+        "to_date": current_date,
     }
 
     report_result = run(
