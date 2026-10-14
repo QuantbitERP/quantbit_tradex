@@ -43,7 +43,7 @@
         // Create the HTML dialog.
         const dialog = new frappe.ui.Dialog({
             title: "Warehouse Stock Balance",
-            size: "large",
+            size: "extra-large",
             fields: [
                 {
                     fieldtype: "HTML",
@@ -57,6 +57,12 @@
         });
 
         dialog.show();
+
+        // Only width is increased (height is untouched).
+        dialog.$wrapper.find(".modal-dialog").css({
+            "max-width": "96%",
+            "width": "96%"
+        });
 
         const wrapper = dialog.fields_dict.stock_html.$wrapper;
 
@@ -107,7 +113,8 @@
                 return;
             }
 
-            let html = "";
+            // CHANGED: collect each item card separately.
+            const cards = [];
 
             results.forEach(function (item) {
                 let rowsHtml = "";
@@ -147,10 +154,19 @@
                         rowsHtml += `
                             <tr style="${rowStyle}">
                                 <td style="padding:8px 10px;
+                                    word-break:break-word;
                                     border-bottom:1px solid var(--border-color)">
                                     ${frappe.utils.escape_html(
                                         warehouse.warehouse
                                     )}
+                                </td>
+                                <td style="padding:8px 10px;text-align:right;
+                                    border-bottom:1px solid var(--border-color)">
+                                    ${format_number(flt(warehouse.balance_qty), null, 2)}
+                                </td>
+                                <td style="padding:8px 10px;text-align:right;
+                                    border-bottom:1px solid var(--border-color)">
+                                    ${format_number(flt(warehouse.pick_qty), null, 2)}
                                 </td>
                                 <td style="padding:8px 10px;
                                     text-align:right;font-weight:600;
@@ -162,11 +178,12 @@
                     });
                 }
 
-                html += `
+                cards.push(`
                     <div style="border:1px solid var(--border-color);
-                        border-radius:6px;overflow:hidden;margin:10px 0">
+                        border-radius:6px;overflow:hidden;margin:0">
                         <div style="padding:8px 10px;
-                            background:var(--control-bg);font-weight:600">
+                            background:var(--control-bg);font-weight:600;
+                            word-break:break-word">
                             ${frappe.utils.escape_html(item.item_code)}
                             <span class="text-muted"
                                 style="font-weight:normal">
@@ -180,16 +197,36 @@
                             <thead>
                                 <tr>
                                     <th style="padding:8px 10px">Warehouse</th>
-                                    <th style="padding:8px 10px;text-align:right">
-                                        Available Qty
-                                    </th>
+                                    <th style="padding:8px 10px;text-align:right">Balance</th>
+                                    <th style="padding:8px 10px;text-align:right">Open Pick</th>
+                                    <th style="padding:8px 10px;text-align:right">Available</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
                         </table>
                     </div>
-                `;
+                `);
             });
+
+            // CHANGED: 5 items per table row (1|2|3|4|5, then 6|7|...).
+            const perRow = 5;
+            let tableRows = "";
+
+            for (let i = 0; i < cards.length; i += perRow) {
+                let cells = "";
+
+                for (let j = 0; j < perRow; j++) {
+                    const card = cards[i + j];
+                    cells += `
+                        <td style="width:20%;vertical-align:top;
+                            padding:0;border:0">
+                            ${card || ""}
+                        </td>
+                    `;
+                }
+
+                tableRows += `<tr>${cells}</tr>`;
+            }
 
             wrapper.html(`
                 <div>
@@ -197,7 +234,11 @@
                         Stock as of
                         ${frappe.utils.escape_html(postingDate)}
                     </p>
-                    ${html}
+                    <table style="width:100%;table-layout:fixed;
+                        border-collapse:separate;border-spacing:10px;
+                        margin:0 -10px">
+                        <tbody>${tableRows}</tbody>
+                    </table>
                     <div class="text-muted" style="font-size:11px;padding:5px 0">
                         <span style="color:#856404">Yellow:</span>
                         Stock is less than required quantity.
