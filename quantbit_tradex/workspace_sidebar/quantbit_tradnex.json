@@ -1,0 +1,27 @@
+{
+ "app": "quantbit_tradex",
+ "creation": "2026-10-14 12:36:36.475150",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Quantbit Tradnex",
+   "link_to": "Quantbit Tradnex",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-14 15:04:46.174341",
+ "modified_by": "Administrator",
+ "module": "Quantbit Tradex",
+ "name": "Quantbit Tradnex",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Quantbit Tradnex"
+}

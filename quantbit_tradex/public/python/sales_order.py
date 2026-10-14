@@ -25,6 +25,23 @@ def get_warehouse_stock_on_date(item_code, posting_date, company):
     result = report_result.get("result") or []
     warehouses = []
 
+    # Qty of this item in Pick Lists with status "Open", grouped by warehouse
+    pick_rows = frappe.db.sql(
+        """
+        SELECT pli.warehouse, SUM(pli.stock_qty) AS pick_qty
+        FROM `tabPick List Item` pli
+        INNER JOIN `tabPick List` pl ON pl.name = pli.parent
+        WHERE pl.status = 'Open'
+            AND pl.docstatus < 2
+            AND pl.company = %s
+            AND pli.item_code = %s
+        GROUP BY pli.warehouse
+        """,
+        (company, item_code),
+        as_dict=True,
+    )
+    pick_map = {r.warehouse: flt(r.pick_qty) for r in pick_rows if r.warehouse}
+
     for row in result:
         if not isinstance(row, dict):
             continue
@@ -35,15 +52,18 @@ def get_warehouse_stock_on_date(item_code, posting_date, company):
         warehouse = row.get("warehouse")
         if not warehouse:
             continue
-
-        available_qty = flt(
+            
+        balance_qty = flt(
             row.get("bal_qty", row.get("balance_qty", 0))
         )
 
-        if available_qty > 0:
+        if balance_qty > 0:
+            pick_qty = flt(pick_map.get(warehouse, 0))
             warehouses.append({
                 "warehouse": warehouse,
-                "available_qty": available_qty,
+                "balance_qty": balance_qty,
+                "pick_qty": pick_qty,
+                "available_qty": balance_qty - pick_qty,
             })
 
     return warehouses
