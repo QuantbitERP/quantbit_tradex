@@ -7,6 +7,15 @@ from erpnext.accounts.report.accounts_receivable.accounts_receivable import (
 )
 
 
+# Copyright (c) 2026, Quantbit Technology Pvt. Ltd. and contributors
+# For license information, please see license.txt
+
+import frappe
+from erpnext.accounts.report.accounts_receivable.accounts_receivable import (
+    ReceivablePayableReport,
+)
+
+
 def execute(filters=None):
     filters = frappe._dict(filters or {})
 
@@ -15,22 +24,14 @@ def execute(filters=None):
     if party and isinstance(party, str):
         filters.party = [party]
 
-    # Needed so the core report fills the Sales Person column
-    filters.show_sales_person = 1
+    args = {
+        "account_type": "Payable",
+        "naming_by": ["Buying Settings", "supp_master_name"],
+    }
 
-    # Core execute returns 6 values
-    columns, data, message, chart, report_summary, skip_total_row = accounts_receivable_execute(filters)
+    columns, data, message, chart, report_summary, skip_total_row = ReceivablePayableReport(filters).run(args)
 
     # Remove Cost Center column
     columns = [c for c in columns if c.get("fieldname") != "cost_center"]
-
-    # Add Sales Person column only if the core report did not already add it
-    # if not any(c.get("fieldname") == "sales_person" for c in columns):
-    #     columns.append({
-    #         "label": "Sales Person",
-    #         "fieldname": "sales_person",
-    #         "fieldtype": "Data",
-    #         "width": 150,
-    #     })
 
     return columns, data, message, chart, report_summary, skip_total_row
