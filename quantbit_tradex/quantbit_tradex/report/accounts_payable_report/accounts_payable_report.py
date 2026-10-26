@@ -5,7 +5,7 @@ import frappe
 from erpnext.accounts.report.accounts_receivable.accounts_receivable import (
     execute as accounts_receivable_execute,
 )
-
+                        
 
 # Copyright (c) 2026, Quantbit Technology Pvt. Ltd. and contributors
 # For license information, please see license.txt
