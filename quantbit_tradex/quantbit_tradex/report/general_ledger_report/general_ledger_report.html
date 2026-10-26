@@ -1,0 +1,427 @@
+
+{%
+    var cur = (data && data.length && data[0].presentation_currency) || filters.presentation_currency;
+    var meta = (data && data.length && data[0]) || {};
+    var left = [], right = [], opening = null;
+
+    var fmt = function(v) {
+        return format_currency(Math.abs(Number(v) || 0), cur).replace(/^[^\d-]+\s?/, "");
+    };
+
+    var dt = function(d) {
+        return d ? moment(d).format("D-MMM-YY") : "";
+    };
+
+    var vtype_short = function(t) {
+        var m = {
+            "Purchase Invoice": "Purchase",
+            "Sales Invoice": "Sales",
+            "Debit Note": "Debit Note",
+            "Credit Note": "Credit Note"
+        };
+        return m[t] || t || "";
+    };
+
+    var particulars = function(r) {
+        if (["Payment Entry", "Journal Entry"].indexOf(r.voucher_type) !== -1 && r.against) {
+            return r.against;
+        }
+        return vtype_short(r.voucher_type) + " - " + (r.voucher_no || "");
+    };
+
+    for (var i = 0; i < (data || []).length; i++) {
+        var r = data[i];
+        if (!r) continue;
+
+        if (r.posting_date) {
+            var p = {
+                date: dt(r.posting_date),
+                particulars: particulars(r)
+            };
+
+            if ((Number(r.debit) || 0) > 0) {
+                left.push({
+                    date: p.date,
+                    particulars: p.particulars,
+                    amt: Number(r.debit)
+                });
+            }
+
+            if ((Number(r.credit) || 0) > 0) {
+                right.push({
+                    date: p.date,
+                    particulars: p.particulars,
+                    amt: Number(r.credit)
+                });
+            }
+        } else if ((r.account || "").indexOf("Opening") !== -1) {
+            opening = r;
+        }
+    }
+
+    var op_net = opening
+        ? (Number(opening.debit || 0) - Number(opening.credit || 0))
+        : 0;
+
+    if (op_net > 0) {
+        left.unshift({
+            date: dt(filters.from_date),
+            particulars: "Opening Balance",
+            amt: op_net,
+            bold: true
+        });
+    } else if (op_net < 0) {
+        right.unshift({
+            date: dt(filters.from_date),
+            particulars: "Opening Balance",
+            amt: Math.abs(op_net),
+            bold: true
+        });
+    }
+
+    var sum = function(arr) {
+        var total = 0;
+        for (var k = 0; k < arr.length; k++) {
+            total += Number(arr[k].amt) || 0;
+        }
+        return total;
+    };
+
+    var left_total = sum(left);
+    var right_total = sum(right);
+    var diff = left_total - right_total;
+
+    var closing_left = diff < 0 ? Math.abs(diff) : 0;
+    var closing_right = diff > 0 ? diff : 0;
+    var grand = Math.max(left_total, right_total);
+    var rows = Math.max(left.length, right.length);
+    var party_label = filters.party_name || filters.party || filters.account || "";
+%}
+
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 12mm 10mm 12mm 10mm;
+    }
+
+    .coa {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        line-height: 1.35;
+        color: #000;
+        width: 100%;
+    }
+
+    .coa * {
+        box-sizing: border-box;
+    }
+
+    .coa table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .coa .hdr td {
+        vertical-align: top;
+        padding: 0;
+    }
+
+    .coa .right {
+        text-align: right;
+    }
+
+    .coa .center {
+        text-align: center;
+    }
+
+    .coa .intro {
+        margin-top: 14px;
+    }
+
+    .coa .intro p {
+        margin: 8px 0;
+        text-align: justify;
+    }
+
+    .coa .ledger {
+        table-layout: fixed;
+        margin-top: 12px;
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+    }
+
+    .coa .ledger th {
+        font-size: 9px;
+        font-weight: normal;
+        text-align: left;
+        padding: 5px 3px;
+        border-bottom: 1px solid #000;
+        vertical-align: bottom;
+    }
+
+    .coa .ledger td {
+        font-size: 9px;
+        padding: 2px 3px;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+    }
+
+    .coa .ledger .amount {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .coa .ledger .sep {
+        border-left: 1px solid #000;
+        padding: 0;
+    }
+
+    .coa .ledger thead {
+        display: table-header-group;
+    }
+
+    .coa .ledger tfoot {
+        display: table-row-group;
+    }
+
+    .coa .ledger tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .coa .bold {
+        font-weight: bold;
+    }
+
+    .coa .total td {
+        border-top: 1px solid #000;
+        padding-top: 5px;
+        font-weight: bold;
+    }
+
+    .coa .closing td {
+        padding-top: 5px;
+    }
+
+    .coa .foot {
+        margin-top: 26px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .coa .print-info {
+        margin-top: 14px;
+        border-top: 1px solid #000;
+        font-style: italic;
+        font-size: 9px;
+    }
+
+    .coa .page-note {
+        display: none;
+    }
+
+    @media print {
+        .coa .ledger thead {
+            display: table-header-group;
+        }
+
+        .coa .ledger tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .coa .foot {
+            page-break-inside: avoid;
+        }
+    }
+</style>
+
+<div class="coa">
+
+    <table class="hdr">
+        <tr>
+            <td style="width:50%">
+                To : <b>{%= party_label %}</b><br>
+                {% if (meta.print_party_address) { %}
+                    <div style="margin-left:22px">
+                        {%= meta.print_party_address %}
+                    </div>
+                {% } %}
+            </td>
+
+            <td style="width:50%">
+                From : <b>{%= filters.company || "" %}</b><br>
+                <div style="margin-left:38px">
+                    {% if (meta.print_company_address) { %}
+                        Office: {%= meta.print_company_address %}<br>
+                    {% } %}
+                    {% if (meta.print_udyam) { %}
+                        UDYAM : {%= meta.print_udyam %}<br>
+                    {% } %}
+                    {% if (meta.print_contact) { %}
+                        Contact : {%= meta.print_contact %}
+                    {% } %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-top:14px">
+        <tr>
+            <td>Dear Sir/Madam,</td>
+            <td class="right">
+                Date : <b>{%= moment().format("DD-MMM-YY") %}</b>
+            </td>
+        </tr>
+    </table>
+
+    <p class="center" style="margin:8px 0 0">
+        <b>Sub: Confirmation of Accounts</b>
+    </p>
+
+    <p class="center" style="margin:2px 0 10px;text-decoration:underline">
+        {%= dt(filters.from_date) %} to {%= dt(filters.to_date) %}
+    </p>
+
+    <div class="intro">
+        <p>
+            Given below is the details of your Accounts as standing in
+            my/our Books of Accounts for the above mentioned period.
+        </p>
+
+        <p>
+            Kindly return 3 copies stating your I.T. Permanent A/c No.,
+            duly signed and sealed, in confirmation of the same.
+            Please note that if no reply is received from you within
+            a fortnight, it will be assumed that you have accepted
+            the balance shown below.
+        </p>
+    </div>
+
+    <table class="ledger">
+        <colgroup>
+            <col style="width:9%">
+            <col style="width:27%">
+            <col style="width:14%">
+            <col style="width:1%">
+            <col style="width:9%">
+            <col style="width:26%">
+            <col style="width:14%">
+        </colgroup>
+
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Particulars</th>
+                <th class="right">Debit Amount</th>
+                <th class="sep"></th>
+                <th>Date</th>
+                <th>Particulars</th>
+                <th class="right">Credit Amount</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for (var j = 0; j < rows; j++) {
+                var L = left[j];
+                var R = right[j];
+            %}
+                <tr>
+                    <td class="{%= L && L.bold ? 'bold' : '' %}">
+                        {%= L ? L.date : "" %}
+                    </td>
+                    <td class="{%= L && L.bold ? 'bold' : '' %}">
+                        {%= L ? L.particulars : "" %}
+                    </td>
+                    <td class="amount {%= L && L.bold ? 'bold' : '' %}">
+                        {%= L ? fmt(L.amt) : "" %}
+                    </td>
+
+                    <td class="sep"></td>
+
+                    <td class="{%= R && R.bold ? 'bold' : '' %}">
+                        {%= R ? R.date : "" %}
+                    </td>
+                    <td class="{%= R && R.bold ? 'bold' : '' %}">
+                        {%= R ? R.particulars : "" %}
+                    </td>
+                    <td class="amount {%= R && R.bold ? 'bold' : '' %}">
+                        {%= R ? fmt(R.amt) : "" %}
+                    </td>
+                </tr>
+            {% } %}
+        </tbody>
+
+        <tfoot>
+            <tr class="total">
+                <td></td>
+                <td></td>
+                <td class="amount">{%= fmt(left_total) %}</td>
+                <td class="sep"></td>
+                <td></td>
+                <td></td>
+                <td class="amount">{%= fmt(right_total) %}</td>
+            </tr>
+
+            <tr class="closing">
+                <td></td>
+                <td class="bold">
+                    {%= closing_left > 0 ? "Closing Balance" : "" %}
+                </td>
+                <td class="amount bold">
+                    {%= closing_left > 0 ? fmt(closing_left) : "" %}
+                </td>
+
+                <td class="sep"></td>
+
+                <td></td>
+                <td class="bold">
+                    {%= closing_right > 0 ? "Closing Balance" : "" %}
+                </td>
+                <td class="amount bold">
+                    {%= closing_right > 0 ? fmt(closing_right) : "" %}
+                </td>
+            </tr>
+
+            <tr class="total">
+                <td></td>
+                <td></td>
+                <td class="amount">{%= fmt(grand) %}</td>
+                <td class="sep"></td>
+                <td></td>
+                <td></td>
+                <td class="amount">{%= fmt(grand) %}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <table class="foot">
+        <tr>
+            <td>I/We hereby confirm the above</td>
+            <td class="right">Yours faithfully,</td>
+        </tr>
+        <tr>
+            <td colspan="2" style="height:40px"></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td class="right">
+                <b>{%= filters.company || "" %}</b>
+            </td>
+        </tr>
+    </table>
+
+    <table class="print-info">
+        <tr>
+            <td>
+                <b>Printed By : </b>
+                {%= frappe.session.user_fullname %}
+            </td>
+            <td class="right">
+                <b>Date &amp; Time of Printing : </b>
+                {%= moment().format("DD-MMM-YY HH:mm") %}
+            </td>
+        </tr>
+    </table>
+
+</div>
